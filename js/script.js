@@ -32,6 +32,52 @@ document.addEventListener('DOMContentLoaded', async function() {
     updateActiveNavLink();
 });
 
+
+// Slideshow
+(function () {
+    const wrapper = document.getElementById('slidesWrapper');
+    const dotsContainer = document.getElementById('slideDots');
+    const prevBtn = document.getElementById('prevSlide');
+    const nextBtn = document.getElementById('nextSlide');
+
+    if (!wrapper) return;
+
+    const slides = wrapper.querySelectorAll('.slide');
+    let current = 0;
+    let autoPlay;
+
+    slides.forEach((_, i) => {
+        const dot = document.createElement('div');
+        dot.classList.add('dot');
+        if (i === 0) dot.classList.add('active');
+        dot.addEventListener('click', () => goToSlide(i));
+        dotsContainer.appendChild(dot);
+    });
+
+    const dots = dotsContainer.querySelectorAll('.dot');
+
+    function goToSlide(index) {
+        current = (index + slides.length) % slides.length;
+        wrapper.style.transform = `translateX(-${current * 100}%)`;
+        dots.forEach(d => d.classList.remove('active'));
+        dots[current].classList.add('active');
+        resetAutoPlay();
+    }
+
+    function nextSlide() { goToSlide(current + 1); }
+    function prevSlide() { goToSlide(current - 1); }
+
+    function resetAutoPlay() {
+        clearInterval(autoPlay);
+        autoPlay = setInterval(nextSlide, 4000);
+    }
+
+    nextBtn.addEventListener('click', nextSlide);
+    prevBtn.addEventListener('click', prevSlide);
+
+    resetAutoPlay();
+})();
+
 // ===========================
 // LOAD PRODUCTS FROM CSV
 // ===========================
