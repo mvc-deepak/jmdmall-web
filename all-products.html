@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>All Products - JMD Mall</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/grid.css">
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-container">
+      <div class="nav-logo"><a href="index.html">JMD Mall</a></div>
+      <div class="nav-links"><a href="index.html" class="nav-link">Home</a></div>
+    </div>
+  </nav>
+
+  <main class="products-container">
+    <div class="filter-container">
+      <h2>All Products</h2>
+      <p id="categorySubtitle" class="products-subtitle">Explore our full catalog</p>
+    </div>
+
+    <div class="products-grid" id="productsGrid">
+      <div class="loading">Loading products...</div>
+    </div>
+
+    <div id="loadMoreWrapper" style="text-align:center;margin-top:12px;display:none;">
+      <button id="loadMoreBtn" class="action-btn">Load more</button>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-container">
+      <div class="footer-section">
+        <h4>About JMD Mall</h4>
+        <p>Your trusted online marketplace offering quality products, competitive pricing and WhatsApp ordering.</p>
+      </div>
+      <div class="footer-section">
+        <h4>Quick Links</h4>
+        <ul>
+          <li><a href="index.html">Products</a></li>
+          <li><a href="about.html">About Us</a></li>
+          <li><a href="contact.html">Contact Us</a></li>
+        </ul>
+      </div>
+      <div class="footer-section">
+        <h4>Customer Support</h4>
+        <p>WhatsApp: <strong><a href="https://wa.me/9779705446407?text=Hello%20JMD%20Mall" target="_blank">+977 9705446407</a></strong></p>
+        <p>Email: <strong><a href="mailto:info@jmdmall.com">info@jmdmall.com</a></strong></p>
+        <p>Delivery by: <strong>Jay Mata Di Enterprises</strong></p>
+        <p>✅ JMDMall Assured<br>🚚 Fast Delivery</p>
+      </div>
+    </div>
+    <div class="footer-bottom"><p>&copy; 2026 JMD Mall. All Rights Reserved.</p></div>
+  </footer>
+
+  <script src="js/script.js?v=3"></script>
+  <script>
+  (function(){
+    const pageSize = 24;
+    let all = [];
+    let offset = 0;
+
+    async function loadAll(){
+      try{
+        const res = await fetch('products.csv');
+        if(!res.ok) throw new Error('CSV not found');
+        const csv = await res.text();
+        all = parseCSV(csv);
+        renderPage();
+        if(all.length > pageSize){
+          document.getElementById('loadMoreWrapper').style.display = 'block';
+        }
+      }catch(e){
+        document.getElementById('productsGrid').innerHTML = '<div class="loading">Unable to load products.</div>';
+      }
+    }
+
+    function renderPage(){
+      const slice = all.slice(0, offset + pageSize);
+      renderProductCards(slice);
+      offset = slice.length;
+      if(offset >= all.length) document.getElementById('loadMoreWrapper').style.display = 'none';
+    }
+
+    document.getElementById('loadMoreBtn').addEventListener('click', function(){
+      const nextSlice = all.slice(offset, offset + pageSize);
+      renderProductCards(nextSlice, true);
+      offset += nextSlice.length;
+      if(offset >= all.length) this.parentElement.style.display = 'none';
+    });
+
+    loadAll();
+  })();
+  </script>
+</body>
+</html>
