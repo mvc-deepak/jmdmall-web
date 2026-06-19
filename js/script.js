@@ -58,7 +58,20 @@ async function loadProducts() {
 
         filteredProducts = [...allProducts];
 
-        renderProducts(filteredProducts);
+        // If index page (has categoriesGrid), render categories + limited featured
+        if (document.getElementById('categoriesGrid')) {
+            renderCategories(allProducts);
+            const featured = filteredProducts.slice(0, 12);
+            renderProducts(featured);
+            const viewAllWrapper = document.getElementById('viewAllWrapper');
+            if (viewAllWrapper) {
+                viewAllWrapper.style.display = 'block';
+                document.getElementById('viewAllLink').href = 'all-products.html';
+            }
+        } else {
+            // standard full render
+            renderProducts(filteredProducts);
+        }
 
     }
     catch (error) {
@@ -167,6 +180,34 @@ function isHotDeal(product) {
 }
 
 // ===========================
+// CATEGORY HELPERS
+// ===========================
+
+function getUniqueCategories(products){
+    const map = {};
+    products.forEach(p=>{
+        const c = (p.category || 'Uncategorized').trim();
+        if(!c) return;
+        if(!map[c]) map[c] = { name: c, sampleImage: p.image || 'images/placeholder.svg' };
+    });
+    return Object.values(map);
+}
+
+function renderCategories(products){
+    const container = document.getElementById('categoriesGrid');
+    if(!container) return;
+    const cats = getUniqueCategories(products);
+    container.innerHTML = cats.map(cat => `
+      <div class="category-tile" data-category="${escapeHTML(cat.name)}">
+        <a href="category.html?cat=${encodeURIComponent(cat.name)}" style="text-decoration:none;color:inherit;">
+          <div class="category-image"><img src="${cat.sampleImage}" loading="lazy" alt="${escapeHTML(cat.name)}"></div>
+          <div class="category-name">${escapeHTML(cat.name)}</div>
+        </a>
+      </div>
+    `).join('');
+}
+
+// ===========================
 // PRODUCT GRID
 // ===========================
 
@@ -184,6 +225,22 @@ function renderProducts(products) {
     requestAnimationFrame(() => { window.observeLazyImages && window.observeLazyImages(); });
 }
 
+// New helper: render a slice of products and optionally append
+function renderProductCards(products, append = false){
+    if (!productsGrid) return;
+    if(!products || !products.length){
+        if(!append) productsGrid.innerHTML = '<div class="loading">No products found.</div>';
+        return;
+    }
+    const html = products.map(createProductCard).join('');
+    if(append){
+        productsGrid.insertAdjacentHTML('beforeend', html);
+    } else {
+        productsGrid.innerHTML = html;
+    }
+    requestAnimationFrame(() => { window.observeLazyImages && window.observeLazyImages(); });
+}
+
 // ===========================
 // PRODUCT CARD (GRID) - adjusted layout for compact Flipkart-like box
 // ===========================
@@ -195,9 +252,9 @@ function createProductCard(product) {
     // compact name and description (one-line name, two-line desc)
     const shortDesc = (product.description || '').split('\n')[0] || '';
 
-    // image badge for flat discount displayed on image (keeps existing rupee-off badge)
+    // image badge for flat discount displayed on image (now shows Save ₹X)
     const flatDiscountBadge = Number(product.discount_amount) > 0
-        ? `<div class="flat-image-badge">₹${Number(product.discount_amount).toLocaleString('en-IN')} off</div>`
+        ? `<div class="flat-image-badge">Save ₹${Number(product.discount_amount).toLocaleString('en-IN')}</div>`
         : '';
 
     // rating badge to show on the image (bottom-left)
