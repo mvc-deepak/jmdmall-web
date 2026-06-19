@@ -10,123 +10,93 @@
 <style>
 .product-page{
     max-width:1400px;
-    margin:30px auto;
-    padding:20px;
+    margin:20px auto;
+    padding:12px;
 }
 
 .product-detail-card{
     display:grid;
-    grid-template-columns:1fr 1fr;
-    gap:40px;
+    grid-template-columns: 1fr 1fr;
+    gap:24px;
     background:#fff;
-    padding:25px;
+    padding:20px;
     border-radius:12px;
-    box-shadow:0 2px 10px rgba(0,0,0,.08);
+    box-shadow:0 2px 10px rgba(0,0,0,.06);
 }
 
-.product-detail-image{
+/* Gallery styles */
+.gallery-column{
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+}
+.main-image-wrap{
+    position:relative;
+    background:#fff;
+    border-radius:8px;
+    overflow:hidden;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+}
+.main-image-wrap img{
     width:100%;
-    border-radius:10px;
-    max-height:550px;
+    height:420px;
+    object-fit:contain;
+    background:#fff;
+}
+.gallery-thumbs{
+    display:flex;
+    gap:8px;
+    overflow-x:auto;
+    padding-top:8px;
+}
+.thumb{
+    width:64px;
+    height:64px;
+    flex:0 0 auto;
+    border-radius:6px;
+    overflow:hidden;
+    border:2px solid transparent;
+    cursor:pointer;
+}
+.thumb img{
+    width:100%;
+    height:100%;
     object-fit:cover;
 }
+.thumb.active{ border-color:#ff9900; }
 
-.price-row{
-    margin:15px 0;
-}
-
-.mrp{
-    text-decoration:line-through;
-    color:#777;
-    margin-right:10px;
-}
-
-.sell-price{
-    font-size:32px;
-    font-weight:bold;
-    color:#e63946;
-}
-
-.discount-circle{
-    display:inline-block;
-    background:#e63946;
+/* nav arrows */
+.nav-arrow{
+    position:absolute;
+    top:50%;
+    transform:translateY(-50%);
+    background:rgba(0,0,0,0.4);
     color:#fff;
-    padding:8px 12px;
-    border-radius:999px;
-    margin-left:10px;
-    font-size:14px;
+    border:none;
+    width:36px;
+    height:36px;
+    border-radius:50%;
+    cursor:pointer;
+}
+.nav-left{ left:12px; }
+.nav-right{ right:12px; }
+
+/* Details column tweaks for mobile */
+.details-column{ padding:8px; }
+
+@media(max-width:900px){
+    .product-detail-card{ grid-template-columns:1fr; }
+    .main-image-wrap img{ height:300px; }
+    .thumb{ width:56px; height:56px; }
 }
 
-.flat-discount{
-    display:inline-block;
-    margin-top:10px;
-    background:#28a745;
-    color:#fff;
-    padding:8px 12px;
-    border-radius:6px;
-    font-weight:600;
+@media(max-width:480px){
+    .main-image-wrap img{ height:240px; }
+    .thumb{ width:48px; height:48px; }
 }
 
-.hot-deal{
-    display:inline-block;
-    background:#ff0000;
-    color:white;
-    padding:8px 14px;
-    border-radius:6px;
-    font-weight:bold;
-    margin-bottom:10px;
-}
-
-.detail-table{
-    margin-top:20px;
-}
-
-.detail-table div{
-    padding:10px 0;
-    border-bottom:1px solid #eee;
-}
-
-.assured-box{
-    margin-top:25px;
-    padding:20px;
-    background:#f8f9fa;
-    border-radius:8px;
-}
-
-.whatsapp-btn{
-    display:inline-block;
-    margin-top:20px;
-    background:#25D366;
-    color:white;
-    padding:14px 22px;
-    border-radius:8px;
-    font-weight:bold;
-}
-
-.share-btn{
-    display:inline-block;
-    margin-left:10px;
-    background:#146EB4;
-    color:white;
-    padding:14px 22px;
-    border-radius:8px;
-}
-
-.out-stock{
-    color:red;
-    font-weight:bold;
-}
-
-.in-stock{
-    color:green;
-    font-weight:bold;
-}
-
-@media(max-width:768px){
-.product-detail-card{
-grid-template-columns:1fr;
-}
-}
 </style>
 
 </head>
@@ -142,245 +112,193 @@ grid-template-columns:1fr;
 
 <main class="product-page">
 
-<div id="productContainer">
-Loading Product...
-</div>
+<div id="productContainer">Loading Product...</div>
 
 </main>
 
 <script>
-
-const CSV_URL='products.csv';
-const WHATSAPP='9779705446407';
+const CSV_URL = 'products.csv';
+const WHATSAPP = '9779705446407';
+const PLACEHOLDER = 'images/placeholder.svg';
 
 async function loadProduct(){
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get('id');
 
-    const params=new URLSearchParams(window.location.search);
-    const id=params.get('id');
-
-    const response=await fetch(CSV_URL);
-    const csv=await response.text();
-
-    const products=parseCSV(csv);
-
-    const product=products.find(p=>p.id===id);
-
-    if(!product){
-        document.getElementById('productContainer').innerHTML=
-        '<h2>Product Not Found</h2>';
-        return;
+    try{
+        const res = await fetch(CSV_URL);
+        if(!res.ok) throw new Error('CSV not found');
+        const csv = await res.text();
+        const products = parseCSV(csv);
+        const product = products.find(p=>p.id===id);
+        if(!product){
+            document.getElementById('productContainer').innerHTML = '<h2>Product Not Found</h2>';
+            return;
+        }
+        renderProduct(product);
+    }catch(err){
+        console.error(err);
+        document.getElementById('productContainer').innerHTML = '<h2>Unable to load product</h2>';
     }
-
-    renderProduct(product);
 }
 
-function parseCSV(csv){
+// robust CSV parsing helpers (handles quoted fields)
+function parseCSV(csvText){
+    const lines = csvText.trim().split(/\r?\n/).filter(Boolean);
+    if(!lines.length) return [];
 
-    const lines=csv.trim().split('\n');
-    const headers=lines[0].split(',');
-
-    const data=[];
+    const headers = parseCSVLine(lines[0]).map(h=>h.trim());
+    const data = [];
 
     for(let i=1;i<lines.length;i++){
-
-        const values=lines[i].split(',');
-
-        const obj={};
-
-        headers.forEach((header,index)=>{
-            obj[header.trim()]=values[index]?.trim() || '';
+        if(!lines[i].trim()) continue;
+        const values = parseCSVLine(lines[i]);
+        const obj = {};
+        headers.forEach((h,idx)=>{
+            obj[h] = values[idx] ? values[idx].trim() : '';
         });
-
+        // build images array
+        const images = [];
+        if(obj.main_image) images.push(obj.main_image);
+        ['img2','img3','img4','img5','img6'].forEach(k=>{ if(obj[k] && obj[k].trim()) images.push(obj[k].trim()); });
+        if(obj.image && !images.length) images.push(obj.image);
+        obj.images = images;
+        obj.image = images[0] || obj.image || PLACEHOLDER;
         data.push(obj);
     }
-
     return data;
 }
 
+function parseCSVLine(line){
+    const result = [];
+    let cur = '';
+    let inQuotes = false;
+    for(let i=0;i<line.length;i++){
+        const ch = line[i];
+        if(ch==='"'){
+            if(inQuotes && line[i+1]==='"'){ cur += '"'; i++; }
+            else { inQuotes = !inQuotes; }
+            continue;
+        }
+        if(ch===',' && !inQuotes){ result.push(cur); cur = ''; continue; }
+        cur += ch;
+    }
+    result.push(cur);
+    return result;
+}
+
 function renderProduct(product){
+    // prepare values
+    const mrp = parseFloat(product.mrp)||0;
+    const selling = parseFloat(product.selling_price)||0;
+    const seasonal = parseFloat(product.discount_amount||0)||0;
+    const discount = mrp ? Math.round(((mrp-selling)/mrp)*100) : 0;
+    const hotDeal = discount>49;
+    const deliveryDate = new Date(); deliveryDate.setDate(deliveryDate.getDate()+7);
 
-    const mrp=parseFloat(product.mrp);
-    const selling=parseFloat(product.selling_price);
-    const seasonal=parseFloat(product.discount_amount||0);
+    const shippingText = (product.shipping === '0' || product.shipping==='') ? 'Free Shipping' : '₹'+product.shipping;
+    const stockText = (Number(product.stock) <= 0) ? '<span class="out-stock">Out Of Stock</span>' : '<span class="in-stock">In Stock ('+product.stock+')</span>';
 
-    const discount=Math.round(((mrp-selling)/mrp)*100);
+    // images
+    const images = (product.images && product.images.length) ? product.images : [product.image || PLACEHOLDER];
 
-    const hotDeal=discount>49;
-
-    const deliveryDate=new Date();
-    deliveryDate.setDate(deliveryDate.getDate()+7);
-
-    const shippingText=
-    product.shipping==="0" || product.shipping===""
-    ? "Free Shipping"
-    : "₹"+product.shipping;
-
-    const stockText=
-    Number(product.stock)<=0
-    ? '<span class="out-stock">Out Of Stock</span>'
-    : '<span class="in-stock">In Stock ('+product.stock+')</span>';
-
-    const html=`
-
+    // build gallery HTML
+    const galleryHtml = `
     <div class="product-detail-card">
-
-        <div>
-            <img src="${product.image}"
-                 alt="${product.name}"
-                 class="product-detail-image">
+        <div class="gallery-column">
+            <div class="main-image-wrap">
+                <button class="nav-arrow nav-left" id="prevImg" aria-label="Previous image">&#10094;</button>
+                <img id="mainProductImage" src="${escapeHtml(images[0])}" alt="${escapeHtml(product.name)}" onerror="this.src='${PLACEHOLDER}'">
+                <button class="nav-arrow nav-right" id="nextImg" aria-label="Next image">&#10095;</button>
+            </div>
+            <div class="gallery-thumbs" id="galleryThumbs">
+                ${images.map((src,idx)=>`<div class="thumb ${idx===0? 'active':''}" data-index="${idx}"><img src="${escapeHtml(src)}" onerror="this.src='${PLACEHOLDER}'" loading="lazy"/></div>`).join('')}
+            </div>
         </div>
 
-        <div>
-
+        <div class="details-column">
             ${hotDeal ? '<div class="hot-deal">🔥 HOT DEAL</div>' : ''}
-
-            <h1>${product.name}</h1>
-
-            <div>
-                ⭐ ${product.rating}
-                (${product.reviews} Reviews)
-            </div>
-
+            <h1>${escapeHtml(product.name)}</h1>
+            <div>⭐ ${escapeHtml(product.rating || '5')} (${escapeHtml(product.reviews || '0')} Reviews)</div>
             <div class="price-row">
-
-                <span class="mrp">
-                ₹${mrp.toLocaleString('en-IN')}
-                </span>
-
-                <span class="sell-price">
-                ₹${selling.toLocaleString('en-IN')}
-                </span>
-
-                <span class="discount-circle">
-                ${discount}% OFF
-                </span>
-
+                <span class="mrp">₹${mrp.toLocaleString('en-IN')}</span>
+                <span class="sell-price">₹${selling.toLocaleString('en-IN')}</span>
+                <span class="discount-circle">${discount}% OFF</span>
             </div>
-
-            ${
-                seasonal>0
-                ? `<div class="flat-discount">
-                    Flat ₹${seasonal} OFF
-                   </div>`
-                : ''
-            }
-
-            <p style="margin-top:20px;">
-            ${product.description}
-            </p>
+            ${seasonal>0 ? `<div class="flat-discount">Flat ₹${seasonal} OFF</div>` : ''}
+            <p style="margin-top:12px;">${escapeHtml(product.description)}</p>
 
             <div class="detail-table">
-
-                <div>
-                <strong>Brand:</strong>
-                ${product.brand}
-                </div>
-
-                <div>
-                <strong>SKU:</strong>
-                ${product.sku}
-                </div>
-
-                <div>
-                <strong>Warranty:</strong>
-                ${product.warranty}
-                </div>
-
-                <div>
-                <strong>Shipping:</strong>
-                ${shippingText}
-                </div>
-
-                <div>
-                <strong>Country Of Origin:</strong>
-                ${product.country_of_origin}
-                </div>
-
-                <div>
-                <strong>Status:</strong>
-                ${stockText}
-                </div>
-
-                <div>
-                <strong>Estimated Delivery:</strong>
-                ${deliveryDate.toDateString()}
-                </div>
-
-                <div>
-                <strong>Sold & Delivered By:</strong>
-                Jay Mata Di Enterprises
-                </div>
-
-                <div>
-                <strong>Email:</strong>
-                info@jmdmall.com
-                </div>
-
-                <div>
-                <strong>Phone:</strong>
-                +977 9705446407
-                </div>
-
+                <div><strong>Brand:</strong> ${escapeHtml(product.brand)}</div>
+                <div><strong>SKU:</strong> ${escapeHtml(product.sku)}</div>
+                <div><strong>Warranty:</strong> ${escapeHtml(product.warranty)}</div>
+                <div><strong>Shipping:</strong> ${escapeHtml(shippingText)}</div>
+                <div><strong>Country Of Origin:</strong> ${escapeHtml(product.country_of_origin)}</div>
+                <div><strong>Status:</strong> ${stockText}</div>
+                <div><strong>Estimated Delivery:</strong> ${deliveryDate.toDateString()}</div>
+                <div><strong>Sold & Delivered By:</strong> Jay Mata Di Enterprises</div>
+                <div><strong>Email:</strong> info@jmdmall.com</div>
+                <div><strong>Phone:</strong> +977 9705446407</div>
             </div>
 
-            <a class="whatsapp-btn"
-               target="_blank"
-               href="https://wa.me/${WHATSAPP}?text=${encodeURIComponent(
-                'Hi, I want to order '+product.name
-               )}">
-               Buy on WhatsApp
-            </a>
-
-            <button
-                class="share-btn"
-                onclick="shareProduct()">
-                Share Product
-            </button>
+            <a class="whatsapp-btn" target="_blank" href="https://wa.me/${WHATSAPP}?text=${encodeURIComponent('Hi, I want to order '+product.name)}">Buy on WhatsApp</a>
+            <button class="share-btn" id="shareBtn">Share Product</button>
 
             <div class="assured-box">
-
                 <h3>JMDMall Assured</h3>
-
                 <p>✓ Easy Returns & Replacement</p>
-
                 <p>✓ Cash On Delivery Available</p>
-
                 <p>✓ Genuine Products</p>
-
                 <p>✓ 24/7 Customer Support</p>
-
                 <p>✓ Secure WhatsApp Ordering</p>
-
             </div>
-
         </div>
-
     </div>
     `;
 
-    document.getElementById('productContainer').innerHTML=html;
-}
+    document.getElementById('productContainer').innerHTML = galleryHtml;
 
-function shareProduct(){
+    // attach gallery behavior
+    let currentIndex = 0;
+    const mainImg = document.getElementById('mainProductImage');
+    const thumbs = document.getElementById('galleryThumbs');
+    const thumbNodes = thumbs.querySelectorAll('.thumb');
 
-    if(navigator.share){
-
-        navigator.share({
-            title:document.title,
-            url:window.location.href
-        });
-
-    }else{
-
-        navigator.clipboard.writeText(window.location.href);
-        alert('Product link copied');
+    function setImage(idx){
+        if(idx < 0) idx = images.length -1;
+        if(idx >= images.length) idx = 0;
+        currentIndex = idx;
+        mainImg.src = images[idx] || PLACEHOLDER;
+        thumbNodes.forEach(n=>n.classList.toggle('active', Number(n.dataset.index)===idx));
+        // scroll active thumb into view
+        const active = thumbs.querySelector('.thumb.active');
+        if(active) active.scrollIntoView({behavior:'smooth', inline:'center'});
     }
+
+    document.getElementById('nextImg').addEventListener('click', ()=> setImage(currentIndex+1));
+    document.getElementById('prevImg').addEventListener('click', ()=> setImage(currentIndex-1));
+
+    thumbNodes.forEach(node=> node.addEventListener('click', ()=> setImage(Number(node.dataset.index))));
+
+    // touch swipe support
+    let startX = 0; let deltaX = 0;
+    mainImg.addEventListener('touchstart', e=> startX = e.touches[0].clientX);
+    mainImg.addEventListener('touchmove', e=> { deltaX = e.touches[0].clientX - startX; });
+    mainImg.addEventListener('touchend', ()=> { if(deltaX>50) setImage(currentIndex-1); else if(deltaX<-50) setImage(currentIndex+1); deltaX = 0; });
+
+    // share button
+    const shareBtn = document.getElementById('shareBtn');
+    shareBtn.addEventListener('click', ()=>{
+        if(navigator.share){
+            navigator.share({ title: product.name, text: product.description || product.name, url: window.location.href });
+        } else { navigator.clipboard.writeText(window.location.href); alert('Product link copied'); }
+    });
 }
+
+function escapeHtml(text){ if(!text) return ''; return String(text).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;'); }
 
 loadProduct();
-
 </script>
 
 </body>
 </html>
-
