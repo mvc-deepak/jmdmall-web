@@ -7,90 +7,180 @@
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-    <!-- Navigation Bar -->
+
+    <!-- Navigation -->
     <nav class="navbar">
         <div class="nav-container">
+
             <div class="nav-logo">
                 <a href="index.html">JMD Mall</a>
             </div>
+
             <div class="search-bar">
                 <input type="text" id="searchInput" placeholder="Search products..." class="search-input">
                 <button class="search-btn" id="searchBtn">🔍</button>
             </div>
+
             <div class="nav-links">
                 <a href="index.html" class="nav-link active">Home</a>
                 <a href="about.html" class="nav-link">About</a>
                 <a href="contact.html" class="nav-link">Contact</a>
             </div>
+
         </div>
     </nav>
 
     <!-- Slideshow -->
-<section class="slideshow-container">
-    <div class="slides-wrapper" id="slidesWrapper">
-        <div class="slide">
-            <img src="images/slide1.jpg" alt="Promotion 1">
-        </div>
-        <div class="slide">
-            <img src="images/slide2.jpg" alt="Promotion 2">
-        </div>
-        <div class="slide">
-            <img src="images/slide3.jpg" alt="Promotion 3">
-        </div>
-    </div>
+    <section class="slideshow-container">
 
-    <button class="slide-arrow prev" id="prevSlide">&#10094;</button>
-    <button class="slide-arrow next" id="nextSlide">&#10095;</button>
+        <div class="slides-wrapper" id="slidesWrapper">
 
-    <div class="slide-dots" id="slideDots"></div>
-</section>
-
-    <!-- Filter Section -->
-    <section class="filter-section">
-        <div class="filter-container">
-            <h2>All Products</h2>
-            <div class="category-filters">
-                <button class="filter-btn active" data-filter="all">All</button>
-                <button class="filter-btn" data-filter="Electronics">Electronics</button>
-                <button class="filter-btn" data-filter="Accessories">Accessories</button>
+            <div class="slide">
+                <img src="images/slide1.jpg" alt="Promotion 1">
             </div>
+
+            <div class="slide">
+                <img src="images/slide2.jpg" alt="Promotion 2">
+            </div>
+
+            <div class="slide">
+                <img src="images/slide3.jpg" alt="Promotion 3">
+            </div>
+
         </div>
+
+        <button class="slide-arrow prev" id="prevSlide">&#10094;</button>
+        <button class="slide-arrow next" id="nextSlide">&#10095;</button>
+
+        <div class="slide-dots" id="slideDots"></div>
+
+    </section>
+
+    <!-- Trust Bar -->
+
+    <section class="trust-bar">
+        <div>✅ JMDMall Assured</div>
+        <div>🚚 Fast Delivery</div>
+        <div>💵 Cash on Delivery</div>
+        <div>🔄 Easy Returns</div>
+        <div>📞 24/7 Support</div>
+    </section>
+
+    <!-- Product Filter Section -->
+
+    <section class="filter-section">
+
+        <div class="filter-container">
+
+            <h2>Featured Products</h2>
+
+            <p class="products-subtitle">
+                Quality products at competitive prices.
+            </p>
+
+            <div class="category-filters">
+
+                <button class="filter-btn active" data-filter="all">
+                    All
+                </button>
+
+                <button class="filter-btn" data-filter="featured">
+                    Featured
+                </button>
+
+                <button class="filter-btn" data-filter="Electronics">
+                    Electronics
+                </button>
+
+                <button class="filter-btn" data-filter="Accessories">
+                    Accessories
+                </button>
+
+            </div>
+
+        </div>
+
     </section>
 
     <!-- Products Grid -->
+
     <main class="products-container">
+
         <div class="products-grid" id="productsGrid">
-            <!-- Products loaded dynamically by JavaScript -->
-            <div class="loading">Loading products...</div>
+
+            <div class="loading">
+                Loading products...
+            </div>
+
         </div>
+
     </main>
 
+    <!-- Optional Modal Container -->
+
+    <div id="productModal"></div>
+
     <!-- Footer -->
+
     <footer class="footer">
+
         <div class="footer-container">
+
             <div class="footer-section">
+
                 <h4>About JMD Mall</h4>
-                <p>Your one-stop online marketplace for quality products at great prices.</p>
+
+                <p>
+                    Your trusted online marketplace offering quality products,
+                    competitive pricing and WhatsApp ordering.
+                </p>
+
             </div>
+
             <div class="footer-section">
+
                 <h4>Quick Links</h4>
+
                 <ul>
+                    <li><a href="index.html">Products</a></li>
                     <li><a href="about.html">About Us</a></li>
                     <li><a href="contact.html">Contact Us</a></li>
-                    <li><a href="index.html">Products</a></li>
                 </ul>
+
             </div>
+
             <div class="footer-section">
-                <h4>Connect With Us</h4>
-                <p>Order via WhatsApp: <strong>+977-9705446407</strong></p>
-                <p>Email: <strong>info@jmdmall.com</strong></p>
+
+                <h4>Customer Support</h4>
+
+                <p>
+                    WhatsApp:
+                    <strong>+977 9705446407</strong>
+                </p>
+
+                <p>
+                    Email:
+                    <strong>info@jmdmall.com</strong>
+                </p>
+
+                <p>
+                    Delivery by:
+                    <strong>Jay Mata Di Enterprises</strong>
+                </p>
+
             </div>
+
         </div>
+
         <div class="footer-bottom">
-            <p>&copy; 2024 JMD Mall. All rights reserved.</p>
+            <p>
+                &copy; 2026 JMD Mall. All Rights Reserved.
+            </p>
         </div>
+
     </footer>
 
     <script src="js/script.js"></script>
+
 </body>
 </html>

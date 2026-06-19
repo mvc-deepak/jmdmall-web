@@ -14,479 +14,853 @@ const CONFIG = {
 
 let allProducts = [];
 let filteredProducts = [];
+
 const searchInput = document.getElementById('searchInput');
 const searchBtn = document.getElementById('searchBtn');
 const productsGrid = document.getElementById('productsGrid');
 const filterButtons = document.querySelectorAll('.filter-btn');
-const contactForm = document.getElementById('contactForm');
-const formMessage = document.getElementById('formMessage');
 
 // ===========================
 // INITIALIZATION
 // ===========================
 
-document.addEventListener('DOMContentLoaded', async function() {
-    console.log('Page loaded, initializing...');
+document.addEventListener('DOMContentLoaded', async function () {
+
     await loadProducts();
+
     setupEventListeners();
+
     updateActiveNavLink();
+
+    initSlideshow();
+
 });
 
-
-// Slideshow
-(function () {
-    const wrapper = document.getElementById('slidesWrapper');
-    const dotsContainer = document.getElementById('slideDots');
-    const prevBtn = document.getElementById('prevSlide');
-    const nextBtn = document.getElementById('nextSlide');
-
-    if (!wrapper) return;
-
-    const slides = wrapper.querySelectorAll('.slide');
-    let current = 0;
-    let autoPlay;
-
-    slides.forEach((_, i) => {
-        const dot = document.createElement('div');
-        dot.classList.add('dot');
-        if (i === 0) dot.classList.add('active');
-        dot.addEventListener('click', () => goToSlide(i));
-        dotsContainer.appendChild(dot);
-    });
-
-    const dots = dotsContainer.querySelectorAll('.dot');
-
-    function goToSlide(index) {
-        current = (index + slides.length) % slides.length;
-        wrapper.style.transform = `translateX(-${current * 100}%)`;
-        dots.forEach(d => d.classList.remove('active'));
-        dots[current].classList.add('active');
-        resetAutoPlay();
-    }
-
-    function nextSlide() { goToSlide(current + 1); }
-    function prevSlide() { goToSlide(current - 1); }
-
-    function resetAutoPlay() {
-        clearInterval(autoPlay);
-        autoPlay = setInterval(nextSlide, 4000);
-    }
-
-    nextBtn.addEventListener('click', nextSlide);
-    prevBtn.addEventListener('click', prevSlide);
-
-    resetAutoPlay();
-})();
-
 // ===========================
-// LOAD PRODUCTS FROM CSV
+// LOAD PRODUCTS
 // ===========================
 
 async function loadProducts() {
+
+    if (!productsGrid) return;
+
     try {
+
         const response = await fetch(CONFIG.CSV_URL);
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-        
+
+        if (!response.ok) {
+            throw new Error('CSV not found');
+        }
+
         const csvText = await response.text();
+
         allProducts = parseCSV(csvText);
+
         filteredProducts = [...allProducts];
-        
-        console.log(`Loaded ${allProducts.length} products`);
+
         renderProducts(filteredProducts);
-    } catch (error) {
-        console.error('Error loading products:', error);
-        productsGrid.innerHTML = '<div class="loading">Failed to load products. Please refresh the page.</div>';
+
+    }
+    catch (error) {
+
+        console.error(error);
+
+        productsGrid.innerHTML =
+            '<div class="loading">Unable to load products.</div>';
     }
 }
 
 // ===========================
-// PARSE CSV
+// CSV PARSER
 // ===========================
 
 function parseCSV(csvText) {
+
     const lines = csvText.trim().split('\n');
-    if (lines.length < 2) return [];
-    
-    const headers = lines[0].split(',').map(h => h.trim());
+
+    const headers = lines[0]
+        .split(',')
+        .map(h => h.trim());
+
     const products = [];
-    
+
     for (let i = 1; i < lines.length; i++) {
-        if (lines[i].trim() === '') continue;
-        
-        const values = lines[i].split(',').map(v => v.trim());
+
+        if (!lines[i].trim()) continue;
+
+        const values = lines[i].split(',');
+
         const product = {};
-        
+
         headers.forEach((header, index) => {
-            product[header] = values[index] || '';
+
+            product[header] =
+                values[index]
+                    ? values[index].trim()
+                    : '';
+
         });
-        
+
         products.push(product);
     }
-    
+
     return products;
 }
 
 // ===========================
-// RENDER PRODUCTS
+// PRICE HELPERS
+// ===========================
+
+function getDiscountPercent(mrp, sellingPrice) {
+
+    mrp = Number(mrp || 0);
+    sellingPrice = Number(sellingPrice || 0);
+
+    if (!mrp) return 0;
+
+    return Math.round(
+        ((mrp - sellingPrice) / mrp) * 100
+    );
+}
+
+function getFinalPrice(product) {
+
+    const selling =
+        Number(product.selling_price || 0);
+
+    const discount =
+        Number(product.discount_amount || 0);
+
+    return Math.max(
+        selling - discount,
+        0
+    );
+}
+
+function isHotDeal(product) {
+
+    return getDiscountPercent(
+        product.mrp,
+        product.selling_price
+    ) > 49;
+}
+
+// ===========================
+// PRODUCT GRID
 // ===========================
 
 function renderProducts(products) {
+
     if (!productsGrid) return;
-    
-    if (products.length === 0) {
-        productsGrid.innerHTML = '<div class="loading">No products found</div>';
+
+    if (!products.length) {
+
+        productsGrid.innerHTML =
+            '<div class="loading">No products found.</div>';
+
         return;
     }
-    
-    productsGrid.innerHTML = products.map(product => createProductCard(product)).join('');
-    attachProductCardListeners();
+
+    productsGrid.innerHTML =
+        products
+            .map(createProductCard)
+            .join('');
 }
 
 // ===========================
-// CREATE PRODUCT CARD
+// PRODUCT CARD
 // ===========================
 
 function createProductCard(product) {
-    const { id, name, price, image, category } = product;
-    
+
+    const discountPercent =
+        getDiscountPercent(
+            product.mrp,
+            product.selling_price
+        );
+
+    const hotDeal =
+        isHotDeal(product);
+
+    const finalPrice =
+        getFinalPrice(product);
+
     return `
-        <div class="product-card" data-product-id="${id}">
+
+    <div class="product-card">
+
+        <a href="product.html?id=${product.id}"
+           style="text-decoration:none;color:inherit;">
+
             <div class="product-image-wrapper">
-                <img class="product-image" src="${image}" alt="${name}" loading="lazy">
-                <span class="product-category">${category}</span>
+
+                <img
+                    class="product-image"
+                    src="${product.image}"
+                    alt="${escapeHTML(product.name)}"
+                    loading="lazy">
+
+                <span class="product-category">
+                    ${product.category}
+                </span>
+
+                ${
+                    hotDeal
+                    ? '<span class="hot-deal-badge">🔥 HOT DEAL</span>'
+                    : ''
+                }
+
+                ${
+                    discountPercent > 0
+                    ? `
+                    <span class="discount-badge">
+                        ${discountPercent}% OFF
+                    </span>
+                    `
+                    : ''
+                }
+
             </div>
-            <div class="product-info">
-                <h3 class="product-name">${escapeHTML(name)}</h3>
-                <div class="product-price">₹${formatPrice(price)}</div>
-                <div class="product-actions">
-                    <button class="action-btn buy-btn" data-product-id="${id}" data-product-name="${escapeHTML(name)}" data-product-price="${price}">
-                        Buy on WhatsApp
-                    </button>
-                    <button class="action-btn share-btn" data-product-id="${id}" data-product-name="${escapeHTML(name)}">
-                        Share
-                    </button>
+
+        </a>
+
+        <div class="product-info">
+
+            <a href="product.html?id=${product.id}"
+               style="text-decoration:none;color:inherit;">
+
+                <h3 class="product-name">
+                    ${escapeHTML(product.name)}
+                </h3>
+
+            </a>
+
+            <div class="price-box">
+
+                <div class="mrp-price">
+                    ₹${formatPrice(product.mrp)}
                 </div>
+
+                <div class="selling-price">
+                    ₹${formatPrice(product.selling_price)}
+                </div>
+
             </div>
+
+            ${
+                Number(product.discount_amount) > 0
+                ? `
+                <div class="flat-discount">
+                    Flat ₹${product.discount_amount} OFF
+                </div>
+                `
+                : ''
+            }
+
+            <div class="product-rating">
+
+                ⭐ ${product.rating || '5'}
+
+                (${product.reviews || '0'})
+
+            </div>
+
+            <div class="product-actions">
+
+                <button
+                    class="action-btn buy-btn"
+                    data-product-id="${product.id}"
+                    data-product-name="${escapeHTML(product.name)}"
+                    data-product-price="${finalPrice}">
+
+                    Buy Now
+
+                </button>
+
+                <button
+                    class="action-btn share-btn"
+                    data-product-id="${product.id}"
+                    data-product-name="${escapeHTML(product.name)}">
+
+                    Share
+
+                </button>
+
+            </div>
+
         </div>
+
+    </div>
+
     `;
 }
 
 // ===========================
-// ATTACH EVENT LISTENERS TO PRODUCT CARDS
+// ATTACH CARD EVENTS
 // ===========================
 
 function attachProductCardListeners() {
-    // Buy on WhatsApp buttons
-    document.querySelectorAll('.buy-btn').forEach(button => {
-        button.addEventListener('click', handleBuyClick);
-    });
-    
-    // Share buttons
-    document.querySelectorAll('.share-btn').forEach(button => {
-        button.addEventListener('click', handleShareClick);
-    });
+
+    document
+        .querySelectorAll('.buy-btn')
+        .forEach(btn => {
+
+            btn.addEventListener(
+                'click',
+                handleBuyClick
+            );
+
+        });
+
+    document
+        .querySelectorAll('.share-btn')
+        .forEach(btn => {
+
+            btn.addEventListener(
+                'click',
+                handleShareClick
+            );
+
+        });
 }
 
 // ===========================
-// HANDLE BUY CLICK
+// RE-ATTACH AFTER RENDER
+// ===========================
+
+const originalRenderProducts =
+    renderProducts;
+
+renderProducts = function(products) {
+
+    originalRenderProducts(products);
+
+    attachProductCardListeners();
+
+};
+
+// ===========================
+// BUY NOW
 // ===========================
 
 function handleBuyClick(event) {
+
     event.preventDefault();
-    
-    const productName = event.target.getAttribute('data-product-name');
-    const productPrice = event.target.getAttribute('data-product-price');
-    
-    const message = `I want to buy ${productName} for ₹${productPrice} from JMD Mall`;
-    const encodedMessage = encodeURIComponent(message);
-    const whatsappUrl = `${CONFIG.WHATSAPP_API_URL}${CONFIG.WHATSAPP_NUMBER}?text=${encodedMessage}`;
-    
-    window.open(whatsappUrl, '_blank');
+
+    event.stopPropagation();
+
+    const productName =
+        event.target.getAttribute(
+            'data-product-name'
+        );
+
+    const productPrice =
+        event.target.getAttribute(
+            'data-product-price'
+        );
+
+    const message =
+
+`Hi,
+
+I want to order:
+
+${productName}
+
+Price: ₹${productPrice}
+
+From JMDMall.com`;
+
+    const whatsappUrl =
+
+        CONFIG.WHATSAPP_API_URL +
+        CONFIG.WHATSAPP_NUMBER +
+        '?text=' +
+        encodeURIComponent(message);
+
+    window.open(
+        whatsappUrl,
+        '_blank'
+    );
 }
 
 // ===========================
-// HANDLE SHARE CLICK
+// SHARE
 // ===========================
 
 function handleShareClick(event) {
+
     event.preventDefault();
-    
-    const productName = event.target.getAttribute('data-product-name');
-    const productId = event.target.getAttribute('data-product-id');
-    const currentUrl = window.location.origin + window.location.pathname + `?product=${productId}`;
-    
-    const shareData = {
-        title: 'JMD Mall',
-        text: `Check out ${productName} on JMD Mall`,
-        url: currentUrl
-    };
-    
-    // Use Web Share API if available
+
+    event.stopPropagation();
+
+    const productId =
+        event.target.getAttribute(
+            'data-product-id'
+        );
+
+    const productName =
+        event.target.getAttribute(
+            'data-product-name'
+        );
+
+    const shareUrl =
+        window.location.origin +
+        '/product.html?id=' +
+        productId;
+
     if (navigator.share) {
-        navigator.share(shareData)
-            .then(() => console.log('Product shared successfully'))
-            .catch(err => {
-                if (err.name !== 'AbortError') {
-                    console.error('Error sharing:', err);
-                    fallbackShare(shareData);
+
+        navigator.share({
+
+            title: productName,
+
+            text:
+                'Check this product on JMD Mall',
+
+            url: shareUrl
+
+        });
+
+    } else {
+
+        navigator.clipboard.writeText(
+            shareUrl
+        );
+
+        alert(
+            'Product link copied.'
+        );
+    }
+}
+
+// ===========================
+// SEARCH
+// ===========================
+
+function handleSearch() {
+
+    const searchTerm =
+        searchInput.value
+            .toLowerCase()
+            .trim();
+
+    if (!searchTerm) {
+
+        filteredProducts =
+            [...allProducts];
+
+    } else {
+
+        filteredProducts =
+            allProducts.filter(product =>
+
+                (product.name || '')
+                    .toLowerCase()
+                    .includes(searchTerm)
+
+                ||
+
+                (product.category || '')
+                    .toLowerCase()
+                    .includes(searchTerm)
+
+                ||
+
+                (product.brand || '')
+                    .toLowerCase()
+                    .includes(searchTerm)
+
+            );
+    }
+
+    renderProducts(filteredProducts);
+}
+
+// ===========================
+// CATEGORY FILTER
+// ===========================
+
+function handleFilter(event) {
+
+    const category =
+        event.target.dataset.filter;
+
+    filterButtons.forEach(btn =>
+        btn.classList.remove('active')
+    );
+
+    event.target.classList.add('active');
+
+    if (category === 'all') {
+
+        filteredProducts =
+            [...allProducts];
+
+    } else {
+
+        filteredProducts =
+            allProducts.filter(product =>
+
+                product.category === category
+
+            );
+    }
+
+    if (searchInput) {
+        searchInput.value = '';
+    }
+
+    renderProducts(filteredProducts);
+}
+
+// ===========================
+// EVENT LISTENERS
+// ===========================
+
+function setupEventListeners() {
+
+    if (searchInput) {
+
+        searchInput.addEventListener(
+            'input',
+            handleSearch
+        );
+
+        searchInput.addEventListener(
+            'keypress',
+            e => {
+
+                if (e.key === 'Enter') {
+
+                    handleSearch();
+
                 }
-            });
-    } else {
-        // Fallback: copy to clipboard
-        fallbackShare(shareData);
+
+            }
+        );
+    }
+
+    if (searchBtn) {
+
+        searchBtn.addEventListener(
+            'click',
+            handleSearch
+        );
+
+    }
+
+    filterButtons.forEach(button => {
+
+        button.addEventListener(
+            'click',
+            handleFilter
+        );
+
+    });
+
+    const contactForm =
+        document.getElementById(
+            'contactForm'
+        );
+
+    if (contactForm) {
+
+        contactForm.addEventListener(
+            'submit',
+            handleFormSubmit
+        );
+
     }
 }
 
 // ===========================
-// FALLBACK SHARE (COPY TO CLIPBOARD)
+// CONTACT FORM
 // ===========================
 
-function fallbackShare(shareData) {
-    const text = `${shareData.title}\n${shareData.text}\n${shareData.url}`;
-    
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(text)
-            .then(() => showNotification('Link copied to clipboard!'))
-            .catch(() => showNotification('Could not copy to clipboard', 'error'));
-    } else {
-        // Fallback for older browsers
-        const textarea = document.createElement('textarea');
-        textarea.value = text;
-        document.body.appendChild(textarea);
-        textarea.select();
-        try {
-            document.execCommand('copy');
-            showNotification('Link copied to clipboard!');
-        } catch (err) {
-            showNotification('Could not copy to clipboard', 'error');
-        }
-        document.body.removeChild(textarea);
-    }
+function handleFormSubmit(e) {
+
+    e.preventDefault();
+
+    showNotification(
+        'Thank you. We received your message.'
+    );
+
+    e.target.reset();
 }
 
 // ===========================
-// SHOW NOTIFICATION
+// NOTIFICATION
 // ===========================
 
-function showNotification(message, type = 'success') {
-    // Create a temporary notification
-    const notification = document.createElement('div');
-    notification.className = `notification ${type}`;
-    notification.textContent = message;
-    notification.style.cssText = `
-        position: fixed;
-        top: 80px;
-        right: 20px;
-        padding: 1rem 1.5rem;
-        background-color: ${type === 'success' ? '#4CAF50' : '#f44336'};
-        color: white;
-        border-radius: 4px;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-        z-index: 1001;
-        font-weight: 500;
-    `;
-    
-    document.body.appendChild(notification);
-    
+function showNotification(message) {
+
+    const div =
+        document.createElement('div');
+
+    div.innerText = message;
+
+    div.style.position = 'fixed';
+    div.style.top = '90px';
+    div.style.right = '20px';
+    div.style.background = '#28a745';
+    div.style.color = '#fff';
+    div.style.padding = '12px 18px';
+    div.style.borderRadius = '8px';
+    div.style.zIndex = '9999';
+
+    document.body.appendChild(div);
+
     setTimeout(() => {
-        notification.style.opacity = '0';
-        notification.style.transition = 'opacity 0.3s ease';
-        setTimeout(() => notification.remove(), 300);
+
+        div.remove();
+
     }, 3000);
 }
 
 // ===========================
-// SETUP EVENT LISTENERS
-// ===========================
-
-function setupEventListeners() {
-    // Search functionality
-    if (searchInput) {
-        searchInput.addEventListener('input', handleSearch);
-        searchInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') handleSearch();
-        });
-    }
-    
-    if (searchBtn) {
-        searchBtn.addEventListener('click', handleSearch);
-    }
-    
-    // Filter buttons
-    filterButtons.forEach(button => {
-        button.addEventListener('click', handleFilter);
-    });
-    
-    // Contact form
-    if (contactForm) {
-        contactForm.addEventListener('submit', handleFormSubmit);
-    }
-}
-
-// ===========================
-// HANDLE SEARCH
-// ===========================
-
-function handleSearch() {
-    const searchTerm = searchInput.value.toLowerCase().trim();
-    
-    if (searchTerm === '') {
-        filteredProducts = [...allProducts];
-    } else {
-        filteredProducts = allProducts.filter(product => 
-            product.name.toLowerCase().includes(searchTerm) ||
-            product.category.toLowerCase().includes(searchTerm)
-        );
-    }
-    
-    renderProducts(filteredProducts);
-}
-
-// ===========================
-// HANDLE FILTER
-// ===========================
-
-function handleFilter(event) {
-    const filterValue = event.target.getAttribute('data-filter');
-    
-    // Update active button
-    filterButtons.forEach(btn => btn.classList.remove('active'));
-    event.target.classList.add('active');
-    
-    // Filter products
-    if (filterValue === 'all') {
-        filteredProducts = [...allProducts];
-    } else {
-        filteredProducts = allProducts.filter(product => product.category === filterValue);
-    }
-    
-    // Clear search
-    if (searchInput) searchInput.value = '';
-    
-    renderProducts(filteredProducts);
-}
-
-// ===========================
-// HANDLE FORM SUBMIT
-// ===========================
-
-function handleFormSubmit(event) {
-    event.preventDefault();
-    
-    const name = document.getElementById('name').value.trim();
-    const email = document.getElementById('email').value.trim();
-    const phone = document.getElementById('phone').value.trim();
-    const subject = document.getElementById('subject').value.trim();
-    const message = document.getElementById('message').value.trim();
-    
-    // Validate
-    if (!name || !email || !phone || !subject || !message) {
-        showFormMessage('Please fill in all fields.', 'error');
-        return;
-    }
-    
-    if (!isValidEmail(email)) {
-        showFormMessage('Please enter a valid email address.', 'error');
-        return;
-    }
-    
-    if (!isValidPhone(phone)) {
-        showFormMessage('Please enter a valid phone number.', 'error');
-        return;
-    }
-    
-    // Log form data (in real app, send to server)
-    console.log('Form submitted:', {
-        name, email, phone, subject, message,
-        timestamp: new Date().toISOString()
-    });
-    
-    showFormMessage('Thank you! Your message has been received. We will get back to you soon.', 'success');
-    contactForm.reset();
-    
-    setTimeout(() => {
-        formMessage.style.display = 'none';
-    }, 5000);
-}
-
-// ===========================
-// SHOW FORM MESSAGE
-// ===========================
-
-function showFormMessage(message, type) {
-    if (!formMessage) return;
-    
-    formMessage.textContent = message;
-    formMessage.className = `form-message ${type}`;
-    formMessage.style.display = 'block';
-    
-    formMessage.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-}
-
-// ===========================
-// VALIDATION HELPERS
-// ===========================
-
-function isValidEmail(email) {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-}
-
-function isValidPhone(phone) {
-    const phoneRegex = /^[\d\s\-\+\(\)]{10,}$/;
-    return phoneRegex.test(phone);
-}
-
-// ===========================
-// UTILITY FUNCTIONS
+// FORMAT PRICE
 // ===========================
 
 function formatPrice(price) {
-    return parseInt(price).toLocaleString('en-IN');
+
+    return Number(price || 0)
+        .toLocaleString('en-IN');
+
 }
 
+// ===========================
+// ESCAPE HTML
+// ===========================
+
 function escapeHTML(text) {
+
+    if (!text) return '';
+
     const map = {
+
         '&': '&amp;',
         '<': '&lt;',
         '>': '&gt;',
         '"': '&quot;',
         "'": '&#039;'
+
     };
-    return text.replace(/[&<>"']/g, m => map[m]);
+
+    return text.replace(
+        /[&<>"']/g,
+        m => map[m]
+    );
 }
+
+// ===========================
+// ACTIVE MENU
+// ===========================
 
 function updateActiveNavLink() {
-    const currentPage = window.location.pathname.split('/').pop() || 'index.html';
-    
-    document.querySelectorAll('.nav-link').forEach(link => {
-        link.classList.remove('active');
-        
-        const href = link.getAttribute('href');
-        if (href === currentPage || (currentPage === '' && href === 'index.html')) {
-            link.classList.add('active');
-        }
-    });
+
+    const currentPage =
+        window.location.pathname
+        .split('/')
+        .pop();
+
+    document
+        .querySelectorAll('.nav-link')
+        .forEach(link => {
+
+            link.classList.remove(
+                'active'
+            );
+
+            if (
+                link.getAttribute('href')
+                === currentPage
+            ) {
+
+                link.classList.add(
+                    'active'
+                );
+
+            }
+
+        });
 }
 
 // ===========================
-// PERFORMANCE MONITORING
+// SLIDESHOW
 // ===========================
 
-window.addEventListener('load', function() {
-    const perfData = window.performance.timing;
-    const pageLoadTime = perfData.loadEventEnd - perfData.navigationStart;
-    console.log(`Page loaded in ${pageLoadTime}ms`);
-});
+function initSlideshow() {
+
+    const wrapper =
+        document.getElementById(
+            'slidesWrapper'
+        );
+
+    if (!wrapper) return;
+
+    const slides =
+        wrapper.querySelectorAll(
+            '.slide'
+        );
+
+    const dotsContainer =
+        document.getElementById(
+            'slideDots'
+        );
+
+    const prevBtn =
+        document.getElementById(
+            'prevSlide'
+        );
+
+    const nextBtn =
+        document.getElementById(
+            'nextSlide'
+        );
+
+    let current = 0;
+
+    slides.forEach((slide, index) => {
+
+        const dot =
+            document.createElement('div');
+
+        dot.className = 'dot';
+
+        if (index === 0) {
+
+            dot.classList.add(
+                'active'
+            );
+
+        }
+
+        dot.addEventListener(
+            'click',
+            () => goToSlide(index)
+        );
+
+        dotsContainer.appendChild(dot);
+
+    });
+
+    const dots =
+        dotsContainer.querySelectorAll(
+            '.dot'
+        );
+
+    function goToSlide(index) {
+
+        current = index;
+
+        wrapper.style.transform =
+            `translateX(-${current * 100}%)`;
+
+        dots.forEach(dot =>
+            dot.classList.remove(
+                'active'
+            )
+        );
+
+        dots[current].classList.add(
+            'active'
+        );
+    }
+
+    function nextSlide() {
+
+        current++;
+
+        if (
+            current >= slides.length
+        ) {
+
+            current = 0;
+
+        }
+
+        goToSlide(current);
+    }
+
+    function prevSlide() {
+
+        current--;
+
+        if (current < 0) {
+
+            current =
+                slides.length - 1;
+
+        }
+
+        goToSlide(current);
+    }
+
+    if (nextBtn) {
+
+        nextBtn.addEventListener(
+            'click',
+            nextSlide
+        );
+
+    }
+
+    if (prevBtn) {
+
+        prevBtn.addEventListener(
+            'click',
+            prevSlide
+        );
+
+    }
+
+    setInterval(
+        nextSlide,
+        4000
+    );
+}
+
+// ===========================
+// PERFORMANCE
+// ===========================
+
+window.addEventListener(
+    'load',
+    function () {
+
+        console.log(
+            'JMD Mall Loaded'
+        );
+
+    }
+);
 
 // ===========================
 // ERROR HANDLING
 // ===========================
 
-window.addEventListener('error', function(e) {
-    console.error('Error occurred:', e.error);
-});
+window.addEventListener(
+    'error',
+    function (e) {
 
-window.addEventListener('unhandledrejection', function(e) {
-    console.error('Unhandled promise rejection:', e.reason);
-});
+        console.error(
+            'JS Error:',
+            e.error
+        );
+
+    }
+);
+
+window.addEventListener(
+    'unhandledrejection',
+    function (e) {
+
+        console.error(
+            'Promise Error:',
+            e.reason
+        );
+
+    }
+);
+
