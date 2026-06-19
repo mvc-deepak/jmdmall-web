@@ -222,7 +222,7 @@ function createProductCard(product) {
                 <span class="mrp-price">₹${formatPrice(product.mrp)}</span>
                 <span class="selling-price">₹${formatPrice(product.selling_price)}</span>
                 ${discountPercent > 0 ? `<span class="discount-percent">${discountPercent}% OFF</span>` : ''}
-                <span class="product-rating small" style="margin-left:auto;">⭐ ${product.rating || '5'} (${product.reviews || '0'})</span>
+                <span class="product-rating small">⭐ ${product.rating || '5'} (${formatCount(product.reviews || '0')})</span>
             </div>
 
         </div>
@@ -293,6 +293,14 @@ function setupEventListeners() {
 
 function formatPrice(price) { return Number(price || 0).toLocaleString('en-IN'); }
 function escapeHTML(text) { if (!text) return ''; const map = {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#039;"}; return String(text).replace(/[&<>"']/g,m=>map[m]); }
+
+// Format large counts: 1200 -> 1.2K, 1,200,000 -> 1.2M
+function formatCount(value){
+    const n = Number(String(value).replace(/[^0-9.-]+/g,'')) || 0;
+    if (n >= 1000000) return (Math.round(n/100000)/10).toFixed(1).replace(/\.0$/,'') + 'M';
+    if (n >= 1000) return (Math.round(n/100)/10).toFixed(1).replace(/\.0$/,'') + 'K';
+    return String(n);
+}
 
 function updateActiveNavLink() {
     const currentPage = window.location.pathname.split('/').pop();
