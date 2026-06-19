@@ -324,8 +324,8 @@ function createProductCard(product) {
     const imgSrc = product.image || 'images/placeholder.svg';
 
     return `
-    <div class="product-card">
-        <a href="product.html?id=${product.id}" style="text-decoration:none;color:inherit;">
+    <div class="product-card" data-product-id="${escapeHTML(product.id)}" data-product-name="${escapeHTML(product.name)}">
+        <a class="product-link" href="product.html?id=${product.id}" style="text-decoration:none;color:inherit;">
             <div class="product-image-wrapper">
                 <img class="product-image" src="${imgSrc}" alt="${escapeHTML(product.name)}" loading="lazy" onerror="this.src='images/placeholder.svg'">
                 ${flatDiscountBadge}
@@ -334,7 +334,7 @@ function createProductCard(product) {
         </a>
 
         <div class="product-info compact">
-            <a href="product.html?id=${product.id}" style="text-decoration:none;color:inherit;">
+            <a class="product-link" href="product.html?id=${product.id}" style="text-decoration:none;color:inherit;">
                 <h4 class="grid-product-name">${escapeHTML(product.name)}</h4>
             </a>
 
@@ -356,7 +356,7 @@ function createProductCard(product) {
 // ===========================
 
 function attachProductCardListeners() {
-    // nothing needed for compact grid cards
+    // nothing needed for compact grid cards; product click tracking handled globally
 }
 
 const originalRenderProducts = renderProducts;
@@ -404,6 +404,26 @@ function setupEventListeners() {
     }
     if (searchBtn) searchBtn.addEventListener('click', handleSearch);
     filterButtons.forEach(button => button.addEventListener('click', handleFilter));
+
+    // product click tracking - delegate from productsGrid
+    try{
+        if(productsGrid){
+            productsGrid.addEventListener('click', function(e){
+                const link = e.target.closest('a.product-link');
+                if(!link) return;
+                const href = link.getAttribute('href') || '';
+                if(href.indexOf('product.html') !== 0) return; // not a product link
+
+                const card = link.closest('.product-card');
+                const pid = card && card.dataset && card.dataset.productId;
+                const pname = card && card.dataset && card.dataset.productName;
+
+                // send analytics event
+                trackEvent('product_click', { product_id: pid || '', product_name: pname || '', href });
+                // do not prevent navigation; GA may send asynchronously
+            });
+        }
+    }catch(e){ console.warn('product click tracking setup failed', e); }
 }
 
 // ===========================
